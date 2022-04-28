@@ -42,8 +42,7 @@ typedef struct GoPacket_t
 {
     byte startByte = START_BYTE; // 0
     byte id; // 1
-    uint32_t crc32; /
-    / 2 - 5
+    uint32_t crc32; // 2 - 5
     bool ack; // 6
     byte dataLength; // 7
     byte data[DATA_LENGTH] = {0}; // 8 - 72
