@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <AltSoftSerial.h>
+#include <CRC32.h>
 
 // Define functions
 #define sprint(x) Serial.print(x)
@@ -7,7 +8,7 @@
 
 #define START_BYTE 0x1
 #define END_BYTE 0x4
-#define DATA_LENGTH 0x8
+#define DATA_LENGTH 0x40
 
 #define SENSOR_DATA_ID 0xD7
 #define STOP_MOTORS_ID 0xE0
@@ -34,15 +35,19 @@ enum Motor
     RIGHT
 };
 
+// TODO: Arduino is Little Endian - https://forum.arduino.cc/t/little-endian-or-big-endian/41382
+// TODO: 57600 baud = 7200 bytes/s
+// TODO: Add back CRC, add back data array (64 bytes)
 typedef struct GoPacket_t
 {
-    int startByte = START_BYTE;
-    int id;
-    bool ack;
-    int dataSign;
-    int sensorX;
-    int sensorY;
-    int endByte = END_BYTE;
+    byte startByte = START_BYTE; // 0
+    byte id; // 1
+    uint32_t crc32; /
+    / 2 - 5
+    bool ack; // 6
+    byte dataLength; // 7
+    byte data[DATA_LENGTH] = {0}; // 8 - 72
+    byte endByte = END_BYTE; // 73
 
 } GoPacket;
 
@@ -56,12 +61,28 @@ bool stoppedMotors = false;
 
 uint32_t state = 0;
 
-int packetId;
-int packetDataSign;
-int packetSensorX;
-int packetSensorY;
+byte packetId;
+uint32_t packetCRC32;
+byte packetDataLength;
+byte packetDataIndex = 0;
+byte packetData[DATA_LENGTH] = {0};
 
 // Functions
+
+int getIntFromPacketData(byte* packetData, uint32_t startIndex)
+{
+    // Little Endian
+    return packetData[startIndex] + 
+           (packetData[startIndex + 1] << 8) + 
+           (packetData[startIndex + 2] << 16) + 
+           (packetData[startIndex + 3] << 24);
+}
+
+void zeroOutPacketData()
+{
+    for (byte i = 0; i < DATA_LENGTH; ++i)
+        packetData[i] = 0;
+}
 
 void setupMotors()
 {
@@ -165,49 +186,10 @@ void processParentalOverride()
     sprintln("Parental Override");
 }
 
-// TODO: remember to free returned array
-int* getActualSensorVals(int sign, int receivedSensorX, int receivedSensorY)
+void processSensorData(int sensorX, int sensorY)
 {
-    int* actualSensorVals = (int*) malloc(2 * sizeof(int));
-    actualSensorVals[0] = receivedSensorX;
-    actualSensorVals[1] = receivedSensorY;
-
-    switch (sign)
-    {
-    case 0x1:
-        // Sensor X Negative
-        actualSensorVals[0] = -actualSensorVals[0];
-        break;
-    
-    case 0x2:
-        // Sensor Y Negative
-        actualSensorVals[1] = -actualSensorVals[1];
-        break;
-
-    case 0x3:
-        // Sensor X and Y Negative
-        actualSensorVals[0] = -actualSensorVals[0];
-        actualSensorVals[1] = -actualSensorVals[1];
-        break;
-    
-    default:
-        break;
-    }
-
-    return actualSensorVals;
-}
-
-void processSensorData(int sensorSign, int sensorX, int sensorY)
-{
-    int* actualSensorVals = getActualSensorVals(sensorSign, sensorX, sensorY);
-
-    int actualSensorX = actualSensorVals[0];
-    int actualSensorY = actualSensorVals[1];
-
-    free(actualSensorVals);
-
-    int scaledSensorX = (int)floor(scaleSensorX(actualSensorX));
-    int scaledSensorY = (int)floor(scaleSensorY(actualSensorY));
+    int scaledSensorX = (int)floor(scaleSensorX(sensorX));
+    int scaledSensorY = (int)floor(scaleSensorY(sensorY));
 
     // Flip turning direction from phone
     int motor1Speed = scaledSensorX - scaledSensorY;
@@ -241,7 +223,28 @@ void bluetoothStateMachine()
             ++state;
             break;
 
+        // TODO: Check sequence of CRC bytes from BT (Little Endian from BT)
         case 2:
+            packetCRC32 = (uint32_t) dataRead << 0;
+            ++state;
+            break;
+
+        case 3:
+            packetCRC32 += (uint32_t) dataRead << 8;
+            ++state;
+            break;
+
+        case 4:
+            packetCRC32 += (uint32_t) dataRead << 16;
+            ++state;
+            break;
+
+        case 5:
+            packetCRC32 += (uint32_t) dataRead << 24;
+            ++state;
+            break;
+
+        case 6:
             if (dataRead == 0x1 || dataRead == 0x0)
             {
                 receivedAck = (bool)dataRead;
@@ -252,25 +255,21 @@ void bluetoothStateMachine()
                 state = 0;
             }
             break;
-
-        case 3:
-            packetDataSign = dataRead;
+        
+        case 7:
+            packetDataLength = dataRead;
             ++state;
             break;
 
-        case 4:
-            packetSensorX = dataRead;
+        case 8 ... 72:
+            packetData[packetDataIndex++] = dataRead;
             ++state;
             break;
 
-        case 5:
-            packetSensorY = dataRead;
-            ++state;
-            break;
-
-        case 6:
+        case 73:
             if (dataRead == END_BYTE)
             {
+                // TODO: Calculate data CRC16 -> if NOT same as received, throw out packet (data integrity compromised)
                 switch (packetId)
                 {
                 case STOP_MOTORS_ID:
@@ -278,7 +277,8 @@ void bluetoothStateMachine()
                     break;
 
                 case SENSOR_DATA_ID:
-                    processSensorData(packetDataSign, packetSensorX, packetSensorY);
+                    // TODO: compose uint for sensorX and sensorY from 2 bytes for each (packet data will be 4 bytes long)
+                    processSensorData(getIntFromPacketData(packetData, 0), getIntFromPacketData(packetData, 4));
                     break;
 
                 case PARENTAL_OVERRIDE_ID:
@@ -291,9 +291,10 @@ void bluetoothStateMachine()
             state = 0;
 
             packetId = 0;
-            packetDataSign = 0;
-            packetSensorX = 0;
-            packetSensorY = 0;
+            packetCRC32 = 0;
+            packetDataIndex = 0;
+            packetDataLength = 0;
+            zeroOutPacketData();
 
             break;
 
