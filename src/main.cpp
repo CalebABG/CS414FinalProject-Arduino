@@ -8,7 +8,7 @@
 
 #define START_BYTE 0x1
 #define END_BYTE 0x4
-#define DATA_LENGTH 0x40
+#define DATA_LENGTH 0xA
 
 #define SENSOR_DATA_ID 0xD7
 #define STOP_MOTORS_ID 0xE0
@@ -65,8 +65,11 @@ typedef struct GoPacket_t
     uint32_t crc32; // 3 - 6
     bool ack; // 7
     uint16_t dataLength; // 8 - 9
-    byte data[DATA_LENGTH] = {0}; // 10 - 73
-    byte endByte = END_BYTE; // 74
+    byte data[DATA_LENGTH] = {0}; // 10 - 19
+    byte endByte = END_BYTE; // 20
+
+    // byte data[DATA_LENGTH] = {0}; // 10 - 17
+    // byte endByte = END_BYTE; // 18
 
 } GoPacket;
 
@@ -84,16 +87,22 @@ byte packetDataIndex = 0;
 
 // Functions
 
+void printHex(long num)
+{
+  if (num < 0x10) Serial.print("0");
+  Serial.print(num, HEX);
+}
+
 // CRC32 consists of: id, ack, dataLength, data
 uint32_t calculatePacketCRC32(GoPacket* packet)
 {
-    crc.update(packet->id & 0xFF); // Low byte
-    crc.update((packet->id >> 8) & 0xFF); // High byte
+    crc.update((byte)(packet->id)); // Low byte
+    crc.update((byte)((packet->id >> 8))); // High byte
 
-    crc.update(packet->ack);
+    crc.update((byte)packet->ack);
 
-    crc.update(packet->dataLength & 0xFF);
-    crc.update((packet->dataLength >> 8) & 0xFF);
+    crc.update((byte)(packet->dataLength));
+    crc.update((byte)((packet->dataLength >> 8)));
 
     crc.update(packet->data, DATA_LENGTH);
 
@@ -112,16 +121,16 @@ int16_t getInt16FromPacketData(byte* packetData, uint32_t startIndex)
 {
     // Little Endian
     return packetData[startIndex] + 
-           (packetData[startIndex + 1] << 8);
+           (((uint16_t) packetData[startIndex + 1]) << 8);
 }
 
 int32_t getInt32FromPacketData(byte* packetData, uint32_t startIndex)
 {
     // Little Endian
     return packetData[startIndex] + 
-           (packetData[startIndex + 1] << 8) + 
-           (packetData[startIndex + 2] << 16) + 
-           (packetData[startIndex + 3] << 24);
+           (((uint32_t) packetData[startIndex + 1]) << 8) + 
+           (((uint32_t) packetData[startIndex + 2]) << 16) + 
+           (((uint32_t) packetData[startIndex + 3]) << 24);
 }
 
 void zeroOutPacketData()
@@ -253,53 +262,54 @@ void bluetoothStateMachine()
     if (bluetooth.available() > 0)
     {
         int16_t dataRead = bluetooth.read();
-        Serial.println(dataRead, HEX);
+        // printHex(dataRead); sprintln();
+        // sprintln(String(state) + " - " + String(dataRead, HEX));
 
         switch (state)
         {
         case 0:
             if (dataRead == START_BYTE)
-                ++state;
+                state++;
             else
                 state = 0;
             break;
 
         case 1:
             receivedPacket.id = dataRead;
-            ++state;
+            state++;
             break;
         
         case 2:
-            receivedPacket.id += dataRead << 8;
-            ++state;
+            // When shifting, need to cast to larger value to keep data
+            receivedPacket.id += ((uint16_t) dataRead) << 8;
+            state++;
             break;
 
-        // TODO: Check sequence of CRC bytes from BT (Little Endian from BT)
         case 3:
-            receivedPacket.crc32 = dataRead;
-            ++state;
+            receivedPacket.crc32 = ((uint32_t) dataRead);
+            state++;
             break;
 
         case 4:
-            receivedPacket.crc32 += dataRead << 8;
-            ++state;
+            receivedPacket.crc32 += ((uint32_t) dataRead) << 8;
+            state++;
             break;
 
         case 5:
-            receivedPacket.crc32 += dataRead << 16;
-            ++state;
+            receivedPacket.crc32 += ((uint32_t) dataRead) << 16;
+            state++;
             break;
 
         case 6:
-            receivedPacket.crc32 += dataRead << 24;
-            ++state;
+            receivedPacket.crc32 += ((uint32_t) dataRead) << 24;
+            state++;
             break;
 
         case 7:
             if (dataRead == 0x1 || dataRead == 0x0)
             {
                 receivedPacket.ack = (bool)dataRead;
-                ++state;
+                state++;
             }
             else
             {
@@ -309,23 +319,22 @@ void bluetoothStateMachine()
         
         case 8:
             receivedPacket.dataLength = dataRead;
-            ++state;
+            state++;
             break;
 
         case 9:
-            receivedPacket.dataLength += dataRead << 8;
-            ++state;
+            receivedPacket.dataLength += ((uint16_t) dataRead) << 8;
+            state++;
             break;
 
-        case 10 ... 73:
+        case 10 ... 19:
             receivedPacket.data[packetDataIndex++] = dataRead;
-            ++state;
+            state++;
             break;
 
-        case 74:
+        case 20:
             if (dataRead == END_BYTE)
             {
-                // TODO: Calculate data CRC32 -> if NOT same as received, throw out packet (data integrity compromised)
                 uint32_t calculatedCRC32 = calculatePacketCRC32(&receivedPacket);
 
                 if (packetCRC32Match(receivedPacket.crc32, calculatedCRC32))
