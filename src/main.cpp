@@ -18,8 +18,8 @@
 #define MAX_MOTOR_SPEED 255
 
 // H-Bridge Pins
-#define EnA 3
-#define EnB 11
+#define EnA 5
+#define EnB 6
 
 // Motor A
 #define In1 4
@@ -40,24 +40,27 @@ NOTES:
 
 --------------
 
-Number Data Types - https://www.arduino.cc/en/reference/int
+Number Data Types
+    - https://www.arduino.cc/en/reference/int
 
-On the Arduino Uno (and other ATMega based boards) 
+On the Arduino Uno (and other ATMega based boards)
     int stores a 16-bit (2-byte) value.
 
-On the Arduino Due and SAMD based boards (like MKR1000 and Zero), 
+On the Arduino Due and SAMD based boards (like MKR1000 and Zero)
     int stores a 32-bit (4-byte) value.
 
 --------------
 
-Arduino is Little Endian - https://forum.arduino.cc/t/little-endian-or-big-endian/41382
+Arduino is Little Endian
+    - https://forum.arduino.cc/t/little-endian-or-big-endian/41382
 
 --------------
 
 57600 baud = 7200 bytes per second
-
+    - https://lucidar.me/en/serialib/most-used-baud-rates-table/
 */
 
+// Note: for state-machine: range 10 - 17 is 8 numbers
 typedef struct GoPacket_t
 {
     byte startByte = START_BYTE; // 0
@@ -67,9 +70,6 @@ typedef struct GoPacket_t
     uint16_t dataLength; // 8 - 9
     byte data[DATA_LENGTH] = {0}; // 10 - 19
     byte endByte = END_BYTE; // 20
-
-    // byte data[DATA_LENGTH] = {0}; // 10 - 17
-    // byte endByte = END_BYTE; // 18
 
 } GoPacket;
 
@@ -115,6 +115,28 @@ uint32_t calculatePacketCRC32(GoPacket* packet)
 bool packetCRC32Match(uint32_t receivedPacketCRC32, uint32_t calculatedPacketCRC32)
 {
     return receivedPacketCRC32 == calculatedPacketCRC32;
+}
+
+/*
+* Reference: https://stackoverflow.com/questions/3991478/building-a-32-bit-float-out-of-its-4-composite-bytes
+*/
+float getFloatFromPacketData(byte *bytes, bool bigEndian) {
+    float f;
+    byte* fPtr = (byte*)&f;
+
+    if (bigEndian) {
+        fPtr[3] = bytes[0];
+        fPtr[2] = bytes[1];
+        fPtr[1] = bytes[2];
+        fPtr[0] = bytes[3];
+    } else {
+        fPtr[3] = bytes[3];
+        fPtr[2] = bytes[2];
+        fPtr[1] = bytes[1];
+        fPtr[0] = bytes[0];
+    }
+
+    return f;
 }
 
 int16_t getInt16FromPacketData(byte* packetData, uint32_t startIndex)
@@ -247,8 +269,9 @@ void processSensorData(int16_t sensorX, int16_t sensorY)
     int16_t scaledSensorY = (int16_t)floor(scaleSensorY(sensorY));
 
     // Flip turning direction from phone
+    byte motor2DeadBandComp = 3;
     int motor1Speed = scaledSensorX - scaledSensorY;
-    int motor2Speed = scaledSensorX + scaledSensorY;
+    int motor2Speed = (scaledSensorX + motor2DeadBandComp) + scaledSensorY;
 
     // sprintln("M1: " + String(motor1Speed) + 
     //                " M2: " + String(motor2Speed) + 
@@ -398,20 +421,22 @@ uint32_t bt_delay = 500;
 
 void setup()
 {
-    Serial.begin(9600);
+    Serial.begin(38400);
     sprintln("Arduino Up");
+
+    setupMotors();
 
     while(!Serial);
 
-    delay(500);
+    delay(450);
 
     bluetooth.begin(57600);
 
     // delay(bt_delay);
     // bluetooth.write("AT");
 
-    delay(bt_delay);
-    bluetooth.write("AT+BAUD7");
+    // delay(bt_delay);
+    // bluetooth.write("AT+BAUD7");
 }
 
 void loop()
