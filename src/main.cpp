@@ -3,31 +3,37 @@
 #include <CRC32.h>
 
 // Define functions
+#define Bluetooth Serial1
+
 #define sprint(x) Serial.print(x)
 #define sprintln(x) Serial.println(x)
 
 #define START_BYTE 0x1
 #define END_BYTE 0x4
-#define DATA_LENGTH 0xA
+#define DATA_LENGTH 0x10
+
+// Update this start index if packet format is changed
+#define DATA_START_INDEX 0xA
 
 #define SENSOR_DATA_ID 0xD7
+#define DRIVE_PARAMETERS_ID 0xD8
 #define STOP_MOTORS_ID 0xE0
 #define PARENTAL_OVERRIDE_ID 0xDF
 
-#define MIN_MOTOR_SPEED 0
-#define MAX_MOTOR_SPEED 255
+#define MIN_MOTOR_SPEED 0x0
+#define MAX_MOTOR_SPEED 0xFF
 
 // H-Bridge Pins
 #define EnA 5
 #define EnB 6
 
 // Motor A
-#define In1 4
-#define In2 7
+#define In1 22
+#define In2 23
 
 // Motor B
-#define In3 2
-#define In4 12
+#define In3 24
+#define In4 25
 
 enum Motor
 {
@@ -68,22 +74,26 @@ typedef struct GoPacket_t
     uint32_t crc32; // 3 - 6
     bool ack; // 7
     uint16_t dataLength; // 8 - 9
-    byte data[DATA_LENGTH] = {0}; // 10 - 19
-    byte endByte = END_BYTE; // 20
+    byte data[DATA_LENGTH] = {0}; // 10 - 21
+    byte endByte = END_BYTE; // 22
 
 } GoPacket;
 
+static const GoPacket EmptyPacket;
+
 CRC32 crc;
-AltSoftSerial bluetooth;
 
 uint64_t timeNow = 0;
-uint32_t safetyTimer = 200;
+uint32_t safetyTimer = 250;
 bool stoppedMotors = false;
 
 uint32_t state = 0;
 
 GoPacket receivedPacket;
-byte packetDataIndex = 0;
+uint16_t packetDataIndex = 0;
+
+float sensorXScaleFactor = .50f;
+float sensorYScaleFactor = .115f;
 
 // Functions
 
@@ -117,24 +127,15 @@ bool packetCRC32Match(uint32_t receivedPacketCRC32, uint32_t calculatedPacketCRC
     return receivedPacketCRC32 == calculatedPacketCRC32;
 }
 
-/*
-* Reference: https://stackoverflow.com/questions/3991478/building-a-32-bit-float-out-of-its-4-composite-bytes
-*/
-float getFloatFromPacketData(byte *bytes, bool bigEndian) {
+/* Reference: https://stackoverflow.com/questions/3991478/building-a-32-bit-float-out-of-its-4-composite-bytes */
+float getFloatFromPacketData(byte *bytes, uint16_t startIndex) {
     float f;
     byte* fPtr = (byte*)&f;
 
-    if (bigEndian) {
-        fPtr[3] = bytes[0];
-        fPtr[2] = bytes[1];
-        fPtr[1] = bytes[2];
-        fPtr[0] = bytes[3];
-    } else {
-        fPtr[3] = bytes[3];
-        fPtr[2] = bytes[2];
-        fPtr[1] = bytes[1];
-        fPtr[0] = bytes[0];
-    }
+    fPtr[0] = bytes[startIndex];
+    fPtr[1] = bytes[startIndex + 1];
+    fPtr[2] = bytes[startIndex + 2];
+    fPtr[3] = bytes[startIndex + 3];
 
     return f;
 }
@@ -153,12 +154,6 @@ int32_t getInt32FromPacketData(byte* packetData, uint32_t startIndex)
            (((uint32_t) packetData[startIndex + 1]) << 8) + 
            (((uint32_t) packetData[startIndex + 2]) << 16) + 
            (((uint32_t) packetData[startIndex + 3]) << 24);
-}
-
-void zeroOutPacketData()
-{
-    for (byte i = 0; i < DATA_LENGTH; ++i)
-        receivedPacket.data[i] = 0;
 }
 
 void setupMotors()
@@ -223,12 +218,12 @@ void setMotorSpeeds(int16_t leftMotorSpeed, int16_t rightMotorSpeed)
 
 float scaleSensorX(int16_t v)
 {
-    return .40 * v;
+    return abs(sensorXScaleFactor) * v;
 }
 
 float scaleSensorY(int16_t v)
 {
-    return v * .115;
+    return abs(sensorYScaleFactor) * v;
 }
 
 void safetyIsrMotors()
@@ -241,11 +236,14 @@ void safetyIsrMotors()
         {
             stoppedMotors = false;
         }
-        else if (!stoppedMotors)
+        else
         {
-            // sprintln("Safety: Stopping Motors");
-            setMotorSpeeds(0x0, 0x0);
-            stoppedMotors = true;
+            if (!stoppedMotors)
+            {
+                // sprintln("Safety: Stopping Motors");
+                setMotorSpeeds(0x0, 0x0);
+                stoppedMotors = true;
+            }
         }
 
         receivedPacket.ack = false;
@@ -260,7 +258,7 @@ void processStopMotors()
 
 void processParentalOverride()
 {
-    sprintln("Parental Override");
+    sprintln("Parental Override Deactivated");
 }
 
 void processSensorData(int16_t sensorX, int16_t sensorY)
@@ -269,22 +267,47 @@ void processSensorData(int16_t sensorX, int16_t sensorY)
     int16_t scaledSensorY = (int16_t)floor(scaleSensorY(sensorY));
 
     // Flip turning direction from phone
-    byte motor2DeadBandComp = 3;
     int motor1Speed = scaledSensorX - scaledSensorY;
-    int motor2Speed = (scaledSensorX + motor2DeadBandComp) + scaledSensorY;
-
-    // sprintln("M1: " + String(motor1Speed) + 
-    //                " M2: " + String(motor2Speed) + 
-    //                " A: " + String(scaledSensorY));
+    int motor2Speed = scaledSensorX + scaledSensorY;
 
     setMotorSpeeds(motor1Speed, motor2Speed);
 }
 
+void processDriveParameters(float sensorXScale, float sensorYScale)
+{
+    sensorXScaleFactor = sensorXScale;
+    sensorYScaleFactor = sensorYScale;
+}
+
+void processPacket()
+{
+    switch (receivedPacket.id)
+    {
+    case STOP_MOTORS_ID:
+        processStopMotors();
+        break;
+
+    case PARENTAL_OVERRIDE_ID:
+        processParentalOverride();
+        break;
+
+    case SENSOR_DATA_ID:
+        processSensorData(getInt16FromPacketData(receivedPacket.data, 0),
+                          getInt16FromPacketData(receivedPacket.data, 2));
+        break;
+
+    case DRIVE_PARAMETERS_ID:
+        processDriveParameters(getFloatFromPacketData(receivedPacket.data, 0),
+                               getFloatFromPacketData(receivedPacket.data, 4));
+        break;
+    }
+}
+
 void bluetoothStateMachine()
 {
-    if (bluetooth.available() > 0)
+    if (Bluetooth.available() > 0)
     {
-        int16_t dataRead = bluetooth.read();
+        int16_t dataRead = Bluetooth.read();
         // printHex(dataRead); sprintln();
         // sprintln(String(state) + " - " + String(dataRead, HEX));
 
@@ -331,7 +354,7 @@ void bluetoothStateMachine()
         case 7:
             if (dataRead == 0x1 || dataRead == 0x0)
             {
-                receivedPacket.ack = (bool)dataRead;
+                receivedPacket.ack = dataRead;
                 state++;
             }
             else
@@ -350,45 +373,21 @@ void bluetoothStateMachine()
             state++;
             break;
 
-        case 10 ... 19:
+        case DATA_START_INDEX ... (DATA_START_INDEX + (DATA_LENGTH - 1)):
             receivedPacket.data[packetDataIndex++] = dataRead;
             state++;
             break;
 
-        case 20:
+        case (DATA_START_INDEX + DATA_LENGTH):
             if (dataRead == END_BYTE)
             {
-                uint32_t calculatedCRC32 = calculatePacketCRC32(&receivedPacket);
-
-                if (packetCRC32Match(receivedPacket.crc32, calculatedCRC32))
-                {
-                    switch (receivedPacket.id)
-                    {
-                    case STOP_MOTORS_ID:
-                        processStopMotors();
-                        break;
-
-                    case SENSOR_DATA_ID:
-                        // TODO: compose uint for sensorX and sensorY from 2 bytes for each (packet data will be 4 bytes long)
-                        processSensorData(getInt16FromPacketData(receivedPacket.data, 0), 
-                                          getInt16FromPacketData(receivedPacket.data, 2));
-                        break;
-
-                    case PARENTAL_OVERRIDE_ID:
-                        processParentalOverride();
-                        break;
-                    }
-                }
+                if (packetCRC32Match(receivedPacket.crc32, calculatePacketCRC32(&receivedPacket)))
+                    processPacket();
             }
 
-            // Reset state vars
             state = 0;
-
             packetDataIndex = 0;
-
-            // TODO: Check this is needed; if not data in indexes will be overwritten
-            zeroOutPacketData();
-
+            receivedPacket = EmptyPacket;
             break;
         }
     }
@@ -400,18 +399,18 @@ void readSerial()
     {
         while (Serial.available() > 0)
         {
-            bluetooth.print(Serial.read());
+            Bluetooth.print(Serial.read());
         }
-        bluetooth.println();
+        Bluetooth.println();
     }
 
-    if (bluetooth.available())
+    if (Bluetooth.available())
     {
-        while (bluetooth.available() > 0)
+        while (Bluetooth.available() > 0)
         {
-            Serial.print(bluetooth.read(), HEX);
+            Serial.print(Bluetooth.read(), HEX);
         }
-        Serial.println('\n');
+        Serial.println();
     }
 }
 
@@ -430,7 +429,7 @@ void setup()
 
     delay(450);
 
-    bluetooth.begin(57600);
+    Bluetooth.begin(57600);
 
     // delay(bt_delay);
     // bluetooth.write("AT");
