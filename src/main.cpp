@@ -79,12 +79,12 @@ typedef struct GoPacket_t
 
 } GoPacket;
 
-static const GoPacket EmptyPacket;
-
 CRC32 crc;
 
-uint64_t timeNow = 0;
-uint32_t safetyTimer = 250;
+uint64_t lastTime = 0;
+uint32_t safetyDuration = 250; /* in milliseconds */
+
+bool receivedAck = false;
 bool stoppedMotors = false;
 
 uint32_t state = 0;
@@ -103,11 +103,11 @@ void printHex(long num)
   Serial.print(num, HEX);
 }
 
-// CRC32 consists of: id, ack, dataLength, data
-uint32_t calculatePacketCRC32(GoPacket* packet)
+// CRC consists of: id, ack, dataLength, data
+uint32_t calculatePacketCRC(GoPacket* packet)
 {
-    crc.update((byte)(packet->id)); // Low byte
-    crc.update((byte)((packet->id >> 8))); // High byte
+    crc.update((byte)(packet->id));
+    crc.update((byte)((packet->id >> 8)));
 
     crc.update((byte)packet->ack);
 
@@ -122,9 +122,9 @@ uint32_t calculatePacketCRC32(GoPacket* packet)
     return calcCRC32;
 }
 
-bool packetCRC32Match(uint32_t receivedPacketCRC32, uint32_t calculatedPacketCRC32)
+bool packetOk(GoPacket* packet)
 {
-    return receivedPacketCRC32 == calculatedPacketCRC32;
+    return packet->crc32 == calculatePacketCRC(&receivedPacket);
 }
 
 /* Reference: https://stackoverflow.com/questions/3991478/building-a-32-bit-float-out-of-its-4-composite-bytes */
@@ -132,6 +132,7 @@ float getFloatFromPacketData(byte *bytes, uint16_t startIndex) {
     float f;
     byte* fPtr = (byte*)&f;
 
+    // Little Endian
     fPtr[0] = bytes[startIndex];
     fPtr[1] = bytes[startIndex + 1];
     fPtr[2] = bytes[startIndex + 2];
@@ -154,6 +155,12 @@ int32_t getInt32FromPacketData(byte* packetData, uint32_t startIndex)
            (((uint32_t) packetData[startIndex + 1]) << 8) + 
            (((uint32_t) packetData[startIndex + 2]) << 16) + 
            (((uint32_t) packetData[startIndex + 3]) << 24);
+}
+
+void zeroOutPacketData()
+{
+    for (byte i = 0; i < DATA_LENGTH; ++i)
+        receivedPacket.data[i] = 0;
 }
 
 void setupMotors()
@@ -228,11 +235,11 @@ float scaleSensorY(int16_t v)
 
 void safetyIsrMotors()
 {
-    if (millis() > timeNow + safetyTimer)
+    if (millis() > lastTime + safetyDuration)
     {
-        timeNow = millis();
+        lastTime = millis();
 
-        if (receivedPacket.ack)
+        if (receivedAck)
         {
             stoppedMotors = false;
         }
@@ -246,7 +253,7 @@ void safetyIsrMotors()
             }
         }
 
-        receivedPacket.ack = false;
+        receivedAck = false;
     }
 }
 
@@ -258,7 +265,9 @@ void processStopMotors()
 
 void processParentalOverride()
 {
-    sprintln("Parental Override Deactivated");
+    String prefix = "Parental Override ";
+    String status = receivedPacket.data[0] ? "Active" : "Inactive";
+    sprintln(prefix + status);
 }
 
 void processSensorData(int16_t sensorX, int16_t sensorY)
@@ -281,6 +290,12 @@ void processDriveParameters(float sensorXScale, float sensorYScale)
 
 void processPacket()
 {
+    if (!packetOk(&receivedPacket)) 
+    {
+        sprintln("CRC Mismatch - Dismissing Packet");
+        return;
+    }
+
     switch (receivedPacket.id)
     {
     case STOP_MOTORS_ID:
@@ -354,6 +369,7 @@ void bluetoothStateMachine()
         case 7:
             if (dataRead == 0x1 || dataRead == 0x0)
             {
+                receivedAck = dataRead;
                 receivedPacket.ack = dataRead;
                 state++;
             }
@@ -380,14 +396,11 @@ void bluetoothStateMachine()
 
         case (DATA_START_INDEX + DATA_LENGTH):
             if (dataRead == END_BYTE)
-            {
-                if (packetCRC32Match(receivedPacket.crc32, calculatePacketCRC32(&receivedPacket)))
-                    processPacket();
-            }
+                processPacket();
 
             state = 0;
             packetDataIndex = 0;
-            receivedPacket = EmptyPacket;
+            zeroOutPacketData();
             break;
         }
     }
@@ -416,8 +429,6 @@ void readSerial()
 
 /* ------------------------- */
 
-uint32_t bt_delay = 500;
-
 void setup()
 {
     Serial.begin(38400);
@@ -431,10 +442,7 @@ void setup()
 
     Bluetooth.begin(57600);
 
-    // delay(bt_delay);
-    // bluetooth.write("AT");
-
-    // delay(bt_delay);
+    // delay(450);
     // bluetooth.write("AT+BAUD7");
 }
 
