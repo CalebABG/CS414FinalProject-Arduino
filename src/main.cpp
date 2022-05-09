@@ -47,12 +47,23 @@ void processSensorData(int16_t sensorX, int16_t sensorY)
     setMotorSpeeds(motor1Speed, motor2Speed);
 }
 
+/**
+ * 
+ * 
+ */
 void processDriveParameters(float scaleX, float scaleY)
 {
     sensorXScale = scaleX;
     sensorYScale = scaleY;
 }
 
+/**
+ * Method which determines what to do upon successful 
+ * incoming packet processing.
+ * 
+ * By default, if the packet CRC is invalid, the packet is thrown out
+ * and the method returns.
+ */
 void processPacket()
 {
     if (!receivedPacket.crcOk())
@@ -83,6 +94,17 @@ void processPacket()
     }
 }
 
+/**
+ * Checks after a defined interval of time whether 
+ * or not the global state packet's (updated with successful incoming packet processing)
+ * ACK field is set or not.
+ * 
+ * If ACK not set, then the motors are stopped.
+ * 
+ * NOTE: This method is also mutative with respect to the global state packet. When the interval
+ * of time has passed, the ACK field of the global state packet is set to false in order to
+ * reset the state and wait for an incoming packet to update the ACK field.
+ */
 void handleMotorSafety()
 {
     if (millis() < lastTime + safetyDuration)
@@ -103,12 +125,27 @@ void handleMotorSafety()
     receivedPacket.ack = false;
 }
 
+/**
+ * Passes incoming data if available to the state-machine for processing.
+ * 
+ * State machine processes data byte by byte. It is passed a pointer to the packet structure to
+ * fill as the incoming data is processed into a potential packet; as well as a pointer
+ * to a function to call upon successfully processing the incoming packet.
+ * 
+ * NOTE: Because the state-machine receives a pointer to a packet structure, the state-machine method
+ * is mutative, and changes to the state of the packet will occur.
+ */
 void handleBluetooth()
 {
     if (Serial1.available() > 0)
         stateMachine.loop(Serial1.read(), &receivedPacket, &processPacket);
 }
 
+/**
+ * Reads and prints Serial and Serial1 data if either are available
+ * 
+ * Serial1 prints each data byte as hex.
+ */
 void readSerial()
 {
     if (Serial.available())
@@ -130,6 +167,11 @@ void readSerial()
     }
 }
 
+/**
+ * Arduino Setup method
+ * 
+ * Sets up Serial and Serial1 ports, and motors.
+ */
 void setup()
 {
     Serial.begin(38400);
@@ -147,6 +189,16 @@ void setup()
     // Serial1.write("AT+BAUD7");
 }
 
+/**
+ * Arduino Loop method
+ * 
+ * Continuously monitors whether to stop the motors
+ * if no ACK response has been received from the phone as a safety 
+ * precaution.
+ * 
+ * After motor safety checks, any incoming data is handled by the state-machine
+ * to determine whether the data is a valid packet.
+ */
 void loop()
 {
     handleMotorSafety();
