@@ -25,7 +25,6 @@ enum Motor
 
 /**
  * Method to setup Motor pins as outputs
- *
  */
 void setupMotors()
 {
