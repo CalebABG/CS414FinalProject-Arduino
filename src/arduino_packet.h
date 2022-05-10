@@ -11,8 +11,8 @@
 #define DATA_LENGTH 0x10
 
 /*
-NOTE: 
-Update this start index if packet format is changed 
+NOTE:
+Update this start index if packet format is changed
 This index is based off the byte for the Start of Packet +
 the number of bytes of the Header of the packet
 */
@@ -43,7 +43,6 @@ typedef struct ArduinoPacket_t
 
     /**
      * Clears / zeros out the packets data array
-     * 
      */
     void clearData()
     {
@@ -53,10 +52,10 @@ typedef struct ArduinoPacket_t
 
     /**
      * Calculate the packets CRC.
-     * 
-     * CRC consists of: id, ack, dlc, and data bytes. 
-     * 
-     * @return the calculated uint32_t CRC value for the packet 
+     *
+     * CRC consists of: id, ack, dlc, and data bytes.
+     *
+     * @return the calculated uint32_t CRC value for the packet
      */
     uint32_t calculateCRC()
     {
@@ -75,7 +74,7 @@ typedef struct ArduinoPacket_t
     /**
      * Checks whether the packet CRC which was sent is equal to
      * the computed CRC for the packet.
-     * 
+     *
      * @return true if the packet CRC matches the computed CRC (packet integrity holds), otherwise returns false.
      */
     bool crcOk()
@@ -85,13 +84,14 @@ typedef struct ArduinoPacket_t
 
     /**
      * Get a Float from the data array
-     * 
+     *
+     * Reference: https://stackoverflow.com/questions/3991478/building-a-32-bit-float-out-of-its-4-composite-bytes
+     *
      * @param startIndex the index of the starting byte of the Float value
-     * @return the built up float from the data 
+     * @return the built up float from the data
      */
     float getFloat(uint16_t startIndex)
     {
-        /* Reference: https://stackoverflow.com/questions/3991478/building-a-32-bit-float-out-of-its-4-composite-bytes */
         float f;
         uint8_t *fPtr = (uint8_t *)&f;
 
@@ -106,7 +106,7 @@ typedef struct ArduinoPacket_t
 
     /**
      * Get an Int16 from the data array
-     * 
+     *
      * @param startIndex the index of the starting byte of the Int16 value
      * @return the built up int16_t from the data
      */
@@ -119,7 +119,7 @@ typedef struct ArduinoPacket_t
 
     /**
      * Get an Int32 from the data array
-     * 
+     *
      * @param startIndex the index of the starting byte of the Int32 value
      * @return the built up int32_t from the data
      */

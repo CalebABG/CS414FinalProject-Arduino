@@ -2,7 +2,7 @@
 
 #include <Arduino.h>
 
-#define MIN_MOTOR_SPEED 0x0
+#define MIN_MOTOR_SPEED 0x00
 #define MAX_MOTOR_SPEED 0xFF
 
 // Motor Enable Pins
@@ -25,7 +25,7 @@ enum Motor
 
 /**
  * Method to setup Motor pins as outputs
- * 
+ *
  */
 void setupMotors()
 {
@@ -40,7 +40,7 @@ void setupMotors()
 
 /**
  * Sets the speed of the Motor.
- * 
+ *
  * @param motor the motor to set the speed
  * @param motorSpeed the speed to set
  */
@@ -90,7 +90,7 @@ void setMotorSpeed(Motor motor, int16_t motorSpeed)
 
 /**
  * Handy helper function to set both Motor speeds
- * 
+ *
  * @param leftMotorSpeed the left motor speed
  * @param rightMotorSpeed the right motor speed
  */

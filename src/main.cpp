@@ -14,43 +14,41 @@ ArduinoStateMachine stateMachine;
 
 bool stoppedMotors = false;
 
-uint64_t lastTime = 0; /* Timestamp in milliseconds */
-uint32_t safetyDuration = 350; /* in milliseconds */
+uint64_t lastTime = 0;         /* Timestamp in milliseconds */
+uint32_t safetyDuration = 350; /* Duration of time in milliseconds */
 
-/* Drive Parameters (scales forward and backward speed, and turning speed) */ 
+/* Drive Parameters (scales forward and backward speed, and turning speed) */
 float sensorXScale = .50f;
 float sensorYScale = .115f;
 
 /**
  * Method which handles stopping the motors if stopping the motors was
  * requested from the phone.
- * 
  */
 void processStopMotors()
 {
-    sprintln("Stopping Motors");
+    Serial.println("Stopping Motors");
     setMotorSpeeds(0x0, 0x0);
 }
 
 /**
  * Method which handles whether parental override
  * is active or inactive.
- * 
+ *
  * Currently method only prints the status, but can be extended
  * to do other work if needed.
- * 
  */
 void processParentalOverride()
 {
     String prefix = "Parental Override ";
     String status = receivedPacket.data[0] ? "Active" : "Inactive";
-    sprintln(prefix + status);
+    Serial.println(prefix + status);
 }
 
 /**
  * Method which sets the motors speed based on the
  * drive parameters and sensorX and sensorY values.
- * 
+ *
  * @param sensorX Forward / Backward speed
  * @param sensorY Turning speed
  */
@@ -59,7 +57,8 @@ void processSensorData(int16_t sensorX, int16_t sensorY)
     int16_t scaledSensorX = (int16_t)floor(scaleSensorValue(&sensorX, &sensorXScale));
     int16_t scaledSensorY = (int16_t)floor(scaleSensorValue(&sensorY, &sensorYScale));
 
-    // Flip turning direction from phone
+    // Switch the '+' or '-' on motor speed calculations to change
+    // turning direction from phone
     int motor1Speed = scaledSensorX - scaledSensorY;
     int motor2Speed = scaledSensorX + scaledSensorY;
 
@@ -68,7 +67,6 @@ void processSensorData(int16_t sensorX, int16_t sensorY)
 
 /**
  * Method which sets the drive parameters.
- * 
  */
 void processDriveParameters(float scaleX, float scaleY)
 {
@@ -77,9 +75,9 @@ void processDriveParameters(float scaleX, float scaleY)
 }
 
 /**
- * Method which determines what to do upon successful 
- * processing of incoming packet.
- * 
+ * Method which determines what to do upon successful
+ * processing of an incoming packet.
+ *
  * By default, if the packet CRC is invalid, the packet is thrown out
  * and the method returns.
  */
@@ -87,7 +85,7 @@ void processPacket()
 {
     if (!receivedPacket.crcOk())
     {
-        sprintln("CRC Mismatch - Dismissing Packet");
+        Serial.println("CRC Mismatch - Dismissing Packet");
         return;
     }
 
@@ -114,11 +112,11 @@ void processPacket()
 }
 
 /**
- * Checks after an interval of time whether 
+ * Checks after an interval of time whether
  * or not the global state packet's ACK field is set or not.
- * 
+ *
  * If ACK not set, then the motors are stopped.
- * 
+ *
  * NOTE: This method is also mutative with respect to the global state packet. When the interval
  * of time has passed, the ACK field of the global state packet is set to false in order to
  * reset the state and wait for an incoming packet to update the ACK field.
@@ -126,7 +124,9 @@ void processPacket()
 void handleMotorSafety()
 {
     if (millis() < lastTime + safetyDuration)
+    {
         return;
+    }
 
     lastTime = millis();
 
@@ -145,23 +145,25 @@ void handleMotorSafety()
 
 /**
  * Passes incoming data if available to the state-machine for processing.
- * 
+ *
  * State machine processes data byte by byte. It is passed a pointer to the packet structure to
  * fill as the incoming data is processed into a potential packet; as well as a pointer
  * to a function to call upon successfully processing the incoming packet.
- * 
+ *
  * NOTE: Because the state-machine receives a pointer to a packet structure, the state-machine method
  * is mutative, and changes to the state of the packet will occur.
  */
 void handleBluetooth()
 {
     if (Serial1.available() > 0)
+    {
         stateMachine.loop(Serial1.read(), &receivedPacket, &processPacket);
+    }
 }
 
 /**
  * Reads and prints Serial and Serial1 data if either are available
- * 
+ *
  * Serial1 prints each data byte as hex.
  */
 void readSerial()
@@ -187,13 +189,13 @@ void readSerial()
 
 /**
  * Arduino Setup method
- * 
+ *
  * Sets up Serial and Serial1 ports, and motors.
  */
 void setup()
 {
     Serial.begin(38400);
-    sprintln("Arduino Up");
+    Serial.println("Arduino Up");
 
     setupMotors();
 
@@ -209,11 +211,11 @@ void setup()
 
 /**
  * Arduino Loop method
- * 
+ *
  * Continuously monitors whether to stop the motors
- * if no ACK response has been received from the phone as a safety 
+ * if no ACK response has been received from the phone as a safety
  * precaution.
- * 
+ *
  * After motor safety checks, any incoming data is handled by the state-machine
  * to determine whether the data is a valid packet.
  */
