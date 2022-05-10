@@ -21,6 +21,7 @@ the number of bytes of the Header of the packet
 /* Packet IDs - add more as needed */
 #define SENSOR_DATA_ID 0xD7
 #define DRIVE_PARAMETERS_ID 0xD8
+#define ARDUINO_INFO_ID 0xD9
 #define STOP_MOTORS_ID 0xE0
 #define PARENTAL_OVERRIDE_ID 0xDF
 

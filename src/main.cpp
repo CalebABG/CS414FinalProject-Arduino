@@ -112,6 +112,35 @@ void processPacket()
 }
 
 /**
+ * Method which sends an information packet over
+ * Bluetooth.
+ *
+ * Can add status indicators, other sensor data, etc...
+ * to the packets data array. Increase the DATA_LENGTH
+ * define if theres a need/want to send more data in the packet.
+ */
+void sendArduinoInfo()
+{
+    ArduinoPacket packet;
+    packet.id = ARDUINO_INFO_ID;
+    packet.ack = false;
+
+    /*
+    Format of data from start of data to end:
+    - Parental Control Status
+    */
+    packet.data[0] = receivedPacket.ack;
+
+    packet.crc = packet.calculateCRC();
+
+    /* NOTE:
+    This sends more bytes than the number of bytes of each member field in the struct
+    due to alignment padding - https://www.geeksforgeeks.org/is-sizeof-for-a-struct-equal-to-the-sum-of-sizeof-of-each-member/
+    */
+    Serial1.write((uint8_t *)&packet, sizeof(packet));
+}
+
+/**
  * Checks after an interval of time whether
  * or not the global state packet's ACK field is set or not.
  *
