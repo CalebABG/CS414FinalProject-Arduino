@@ -49,4 +49,4 @@ Would also recommend using a `hot glue` gun for mounting the motors! If not hot 
 
 - [Lipo Battery Safe Bag](https://www.amazon.com/dp/B01GCHBQJS)
 - [Lipo Battery Voltage Checker](https://www.amazon.com/dp/B00XQ91ECA)
-  - Be **PREPARED** these things are load when the alarm goes off
+  - Be **PREPARED** these things are loud when the alarm goes off
