@@ -41,13 +41,23 @@ typedef struct ArduinoPacket_t
     /* End of Packet */
     uint8_t eop = END_OF_PACKET;
 
+    /**
+     * Clears / zeros out the packets data array
+     * 
+     */
     void clearData()
     {
         for (uint16_t i = 0; i < DATA_LENGTH; ++i)
             data[i] = 0;
     }
 
-    /* CRC consists of: id, ack, dlc, data */
+    /**
+     * Calculate the packets CRC.
+     * 
+     * CRC consists of: id, ack, dlc, and data bytes. 
+     * 
+     * @return the calculated uint32_t CRC value for the packet 
+     */
     uint32_t calculateCRC()
     {
         CRC32 crc;
@@ -62,14 +72,26 @@ typedef struct ArduinoPacket_t
         return crc.finalize();
     }
 
+    /**
+     * Checks whether the packet CRC which was sent is equal to
+     * the computed CRC for the packet.
+     * 
+     * @return true if the packet CRC matches the computed CRC (packet integrity holds), otherwise returns false.
+     */
     bool crcOk()
     {
         return crc == calculateCRC();
     }
 
-    /* Reference: https://stackoverflow.com/questions/3991478/building-a-32-bit-float-out-of-its-4-composite-bytes */
+    /**
+     * Get a Float from the data array
+     * 
+     * @param startIndex the index of the starting byte of the Float value
+     * @return the built up float from the data 
+     */
     float getFloat(uint16_t startIndex)
     {
+        /* Reference: https://stackoverflow.com/questions/3991478/building-a-32-bit-float-out-of-its-4-composite-bytes */
         float f;
         uint8_t *fPtr = (uint8_t *)&f;
 
@@ -82,6 +104,12 @@ typedef struct ArduinoPacket_t
         return f;
     }
 
+    /**
+     * Get an Int16 from the data array
+     * 
+     * @param startIndex the index of the starting byte of the Int16 value
+     * @return the built up int16_t from the data
+     */
     int16_t getInt16(uint32_t startIndex)
     {
         // Little Endian
@@ -89,6 +117,12 @@ typedef struct ArduinoPacket_t
                (((uint16_t)data[startIndex + 1]) << 8);
     }
 
+    /**
+     * Get an Int32 from the data array
+     * 
+     * @param startIndex the index of the starting byte of the Int32 value
+     * @return the built up int32_t from the data
+     */
     int32_t getInt32(uint32_t startIndex)
     {
         // Little Endian

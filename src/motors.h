@@ -23,6 +23,10 @@ enum Motor
     RIGHT
 };
 
+/**
+ * Method to setup Motor pins as outputs
+ * 
+ */
 void setupMotors()
 {
     pinMode(EnA, OUTPUT);
@@ -34,6 +38,12 @@ void setupMotors()
     pinMode(In4, OUTPUT);
 }
 
+/**
+ * Sets the speed of the Motor.
+ * 
+ * @param motor the motor to set the speed
+ * @param motorSpeed the speed to set
+ */
 void setMotorSpeed(Motor motor, int16_t motorSpeed)
 {
     uint16_t motorEnaPin,
@@ -78,6 +88,12 @@ void setMotorSpeed(Motor motor, int16_t motorSpeed)
     analogWrite(motorEnaPin, constrainedSpeed);
 }
 
+/**
+ * Handy helper function to set both Motor speeds
+ * 
+ * @param leftMotorSpeed the left motor speed
+ * @param rightMotorSpeed the right motor speed
+ */
 void setMotorSpeeds(int16_t leftMotorSpeed, int16_t rightMotorSpeed)
 {
     setMotorSpeed(LEFT, leftMotorSpeed);

@@ -10,7 +10,19 @@ typedef struct ArduinoStateMachine_t
     uint32_t state = 0;
     uint32_t dataIndex = 0;
 
-    void loop(int16_t dataRead, ArduinoPacket* packet, void (*processPacketFunc)())
+    /**
+     * Handles incoming data if available from the Bluetooth module
+     * and sequentially processes the data to determine if the data is a valid packet. 
+     * 
+     * NOTE: As noted in the main.cpp file, this method is a mutative method on the packet
+     * parameter which is passed as a pointer. The state-machine sequentially builds up the packet,
+     * and if processing is successful, then calls the passed callback method.
+     * 
+     * @param dataRead the data read from the Bluetooth module
+     * @param packet pointer to the packet structure to be built up
+     * @param onPacketProcessedSuccessfully the function to call upon successful packet processing
+     */
+    void loop(int16_t dataRead, ArduinoPacket* packet, void (*onPacketProcessedSuccessfully)())
     {
         /*
          State values correspond to the byte indexes for the
@@ -85,7 +97,7 @@ typedef struct ArduinoStateMachine_t
 
         case (DATA_START_INDEX + DATA_LENGTH):
             if (dataRead == END_OF_PACKET)
-                processPacketFunc();
+                onPacketProcessedSuccessfully();
 
             state = 0;
             dataIndex = 0;

@@ -14,20 +14,32 @@ ArduinoStateMachine stateMachine;
 
 bool stoppedMotors = false;
 
-uint64_t lastTime = 0;
+uint64_t lastTime = 0; /* Timestamp in milliseconds */
 uint32_t safetyDuration = 350; /* in milliseconds */
 
+/* Drive Parameters (scales forward and backward speed, and turning speed) */ 
 float sensorXScale = .50f;
 float sensorYScale = .115f;
 
-// Functions
-
+/**
+ * Method which handles stopping the motors if stopping the motors was
+ * requested from the phone.
+ * 
+ */
 void processStopMotors()
 {
     sprintln("Stopping Motors");
     setMotorSpeeds(0x0, 0x0);
 }
 
+/**
+ * Method which handles whether parental override
+ * is active or inactive.
+ * 
+ * Currently method only prints the status, but can be extended
+ * to do other work if needed.
+ * 
+ */
 void processParentalOverride()
 {
     String prefix = "Parental Override ";
@@ -35,10 +47,17 @@ void processParentalOverride()
     sprintln(prefix + status);
 }
 
+/**
+ * Method which sets the motors speed based on the
+ * drive parameters and sensorX and sensorY values.
+ * 
+ * @param sensorX Forward / Backward speed
+ * @param sensorY Turning speed
+ */
 void processSensorData(int16_t sensorX, int16_t sensorY)
 {
-    int16_t scaledSensorX = (int16_t)scaleSensorValue(&sensorX, &sensorXScale);
-    int16_t scaledSensorY = (int16_t)scaleSensorValue(&sensorY, &sensorYScale);
+    int16_t scaledSensorX = (int16_t)floor(scaleSensorValue(&sensorX, &sensorXScale));
+    int16_t scaledSensorY = (int16_t)floor(scaleSensorValue(&sensorY, &sensorYScale));
 
     // Flip turning direction from phone
     int motor1Speed = scaledSensorX - scaledSensorY;
@@ -48,7 +67,7 @@ void processSensorData(int16_t sensorX, int16_t sensorY)
 }
 
 /**
- * 
+ * Method which sets the drive parameters.
  * 
  */
 void processDriveParameters(float scaleX, float scaleY)
@@ -59,7 +78,7 @@ void processDriveParameters(float scaleX, float scaleY)
 
 /**
  * Method which determines what to do upon successful 
- * incoming packet processing.
+ * processing of incoming packet.
  * 
  * By default, if the packet CRC is invalid, the packet is thrown out
  * and the method returns.
@@ -95,9 +114,8 @@ void processPacket()
 }
 
 /**
- * Checks after a defined interval of time whether 
- * or not the global state packet's (updated with successful incoming packet processing)
- * ACK field is set or not.
+ * Checks after an interval of time whether 
+ * or not the global state packet's ACK field is set or not.
  * 
  * If ACK not set, then the motors are stopped.
  * 
