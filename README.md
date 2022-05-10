@@ -1,4 +1,5 @@
 # CS414FinalProject-Arduino
+![](images/CS414FinalProjectBot.png?raw=true "RC Vehicle / Bot with LiPo batteries in front lower part of chassis, two DC voltage regulators in rear upper part of chassis with motor driver on right side, and Arduino Mega in rear lower part of chassis")
 
 ## Synopsis
 
