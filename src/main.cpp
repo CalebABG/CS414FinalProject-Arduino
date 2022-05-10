@@ -57,10 +57,15 @@ void processSensorData(int16_t sensorX, int16_t sensorY)
     int16_t scaledSensorX = (int16_t)floor(scaleSensorValue(&sensorX, &sensorXScale));
     int16_t scaledSensorY = (int16_t)floor(scaleSensorValue(&sensorY, &sensorYScale));
 
+    // Attempt at addressing motor deadband
+    // Actual correction requires getting better motors w/ encoders ¯\_(ツ)_/¯
+    int16_t deadBandAdjustment = 1;
+    int16_t deadBandCorrection = sensorX > 0 ? deadBandAdjustment : -deadBandAdjustment;
+
     // Switch the '+' or '-' on motor speed calculations to change
     // turning direction from phone
-    int motor1Speed = scaledSensorX - scaledSensorY;
-    int motor2Speed = scaledSensorX + scaledSensorY;
+    int16_t motor1Speed = scaledSensorX - scaledSensorY;
+    int16_t motor2Speed = (scaledSensorX + deadBandCorrection) + scaledSensorY;
 
     setMotorSpeeds(motor1Speed, motor2Speed);
 }
