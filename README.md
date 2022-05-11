@@ -5,11 +5,11 @@
 
 This is the Arduino driver code for my Android class final project. This code handles setting up and driving the motors of the bot, as well as handling the communication between the phone and Arduino through Bluetooth.
 
-This is most of the meat and potatoes of the project, the companion phone app can be found here: [CS414FinalProject-Android](https://github.com/CalebABG/CS414FinalProject-Android)
+This is the meat of the project, the companion phone app can be found here: [CS414FinalProject-Android](https://github.com/CalebABG/CS414FinalProject-Android)
 
-If you'd like to take a look at an in detail breakdown of the project and the challenges and solutions, checkout the project report: [Final Project Report](writeups/project-breakdown.md)
+If you'd like a detailed breakdown of the project, the challenges, and the solutions, checkout the project report: [Final Project Report](writeups/project-breakdown.md)
 
-If you'd like to see a side-by-side demo of the app and bot together, checkout the demo on Youtube: [Final Project Demo]()
+If you'd like to see a side-by-side demo of the app and bot together, checkout the demo on Youtube: [Final Project Demo](#)
 
 Most if not all project parts are listed below, so check them out if you're interested and want to take a go at building one!
 
