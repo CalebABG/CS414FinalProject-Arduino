@@ -50,5 +50,15 @@ For the design of the message protocol, I went with a very simple packet format.
 6. Packet Data = `UInt8Array`
 7. End of Packet = `UInt8`: 0x4
 
-The data array for the packet is set to 16 bytes in the Arduino file defining the packet, but this can be easily changed; I’ve tested up to 64 bytes and the protocol held up fine. The communication of data via the Bluetooth module and the packet CRC were the trickiest parts. The processing of the data over Bluetooth is handled by a state-machine on the Arduino. If the bytes of the packet are in the correct sequence and the packet CRC is valid, the packet is processed, otherwise thrown out.
+Although fairly simple, I wanted to try to make the format as flexible as possible within the time constraints that I had. The packet ID being a UInt16 (2 byte) value made sense because this would allow over 65 thousand message types to be defined. While most likely overkill for this project, having the extra room for future uses is always good.
+
+The CRC was added for checking packet data integrity. If anything goes wrong or is corrupted for any reason via transmission or in processing on either the phone or the Arduino, calculating the packets CRC and checking if the packets CRC matches the computed CRC acts as a data integrity check, ensuring that only packets whose CRC's match will be processed.
+
+The ACK was added as a safety measure while using the phone as the primary controller of the bot. There is a safety function which runs in the Arduino's while loop which checks whether an ACK has been seen/received after an interval of time. If no ACK has been received, then the Arduino sends a command to immediately stop the motors.
+
+The data array for the packet is set to 16 bytes in the Arduino file defining the packet, but this can be easily changed; I’ve tested up to 64 bytes and the protocol held up fine. 
+
+
+
+The communication of data via the Bluetooth module and the packet CRC were the trickiest parts. The processing of the data over Bluetooth is handled by a state-machine on the Arduino. If the bytes of the packet are in the correct sequence and the packet CRC is valid, the packet is processed, otherwise thrown out.
 
