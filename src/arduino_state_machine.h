@@ -48,6 +48,7 @@ typedef struct ArduinoStateMachine_t
             break;
 
         case 2:
+            /* When shifting, need to cast to larger data type to preserve data */
             packet->id += ((uint16_t)dataRead) << 8;
             state++;
             break;

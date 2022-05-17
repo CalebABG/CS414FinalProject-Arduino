@@ -58,7 +58,8 @@ The ACK was added as a safety measure while using the phone as the primary contr
 
 The data array for the packet is set to 16 bytes in the Arduino file defining the packet, but this can be easily changed; I’ve tested up to 64 bytes and the protocol held up fine. 
 
+With the message protocol and packet format designed and out of the way, now the fun part can begin, sending data from the phone. Or well, in the Arduino's case, receiving and interpreting that data!
 
+To accomplish this, making use of a state-machine was key. Using the state-machine allows for the needed sequence checking of incoming bytes and verification that the bytes received are the correct bytes for the corresponding packet's fields. It processes any data from the Bluetooth module byte by byte, and fills in the data for the packet. As of writing this report, the state-machine's loop takes three arguments: the data byte read from the Bluetooth module, the pointer to the packet to fill with data, and a callback function to execute upon successful packet processing.
 
-The communication of data via the Bluetooth module and the packet CRC were the trickiest parts. The processing of the data over Bluetooth is handled by a state-machine on the Arduino. If the bytes of the packet are in the correct sequence and the packet CRC is valid, the packet is processed, otherwise thrown out.
 
