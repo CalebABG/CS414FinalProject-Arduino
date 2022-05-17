@@ -69,3 +69,19 @@ This piece of the puzzle is critical because for any data transmitted that spans
 The second crucial piece of processing is concerned with the Arduino itself. Since at the time of writing this report, the packet format is composed of Integer data type fields, it's important to know as well as specify how many bits or bytes each field will take when processing incoming data. Fortunately, since Arduino is written in `C++`, we have access to numerous integer data types. Arduino makes it easy as there's an integer data type `int` and `unsigned int` (only storing positive values). The tricky part here is that while the data type definitions are convenient to declare, the number of bits / bytes they occupy change depending upon the board you have. As pointed out by the reference - [Int Datatype](https://www.arduino.cc/en/reference/int), `int` occupies 16 bits or `2 bytes` on Arduino UNO and other ATmega based boards, while on the Arduino Due and SAMD based boards, it occupies 32 bits or `4 bytes`. 
 
 Due to this (no pun intended), being more explicit in the data types used is needed because only allocating the needed number of bytes to hold something based on the packet format will not only cut down on the memory required, but also the performance of processing incoming data (albeit most of the time not noticeable). Use of the integer data types: `intXX_t` and `uintXX_t` replacing the `XX` with the desired number of bits to match up to the equivalent number of bytes for the fields of the packet (ex. packet id = `uint16_t` = `2 bytes`).
+
+And with those pieces, the full puzzle has now been completed! Processing of incoming data can properly be parsed and composed to fill in a packet of received data!
+
+### **Safety Features**
+
+Now that it's possible to successfully receive and process packets of data, what happens when the bot doesn't receive data, or receives corrupt data, or data it doesn't understand?
+
+The first safety feature the bot has is a motor safety check which executes before the Bluetooth state-machine executes. This motor safety check fires after an interval of time and determines whether to send a stop command to both motors. If after the interval of time, an `ACK` has not been received, the stop command is sent to the motors.
+
+As this feature executes before the state-machine, regardless of corrupt, invalid, or no data is received, the motors will be stopped after a period of time if an `ACK` has not been seen by the bot.
+
+---
+
+## **Final Thoughts**
+
+Well, if you've got this far, I commend you! I hope it was worth the read, I hope you took something, anything away from this, even if it's questioning something I did or why I did something, because that means I got you thinking!
