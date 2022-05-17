@@ -21,7 +21,7 @@ Thanks for checking out the repo, happy coding!
 
 A list of the parts needed to build this project can be found below. Please, please, please,
 take the time to search and watch how to **PROPERLY** and **SAFELY** handle, charge and discharge `LiPo` / `Lithium Ion` batteries.
-- [HowTo - LiPo Battery Charge / Care](https://www.youtube.com/watch?v=sGsJmSBKxrc)
+- [LiPo Battery Charge / Care](https://www.youtube.com/watch?v=sGsJmSBKxrc)
 
 Also, you will need some sort of chassis or support platform to mount the wheels and the other parts. Below is a link to a potential chassis, and included is a number of the parts listed below, but the parts below require no - minimal soldering, so more plug and play.
 
