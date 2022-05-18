@@ -76,7 +76,7 @@ And with those pieces, the full puzzle has now been completed! Processing of inc
 
 Now that it's possible to successfully receive and process packets of data, what happens when the bot doesn't receive data, or receives corrupt data, or data it doesn't understand?
 
-The first safety feature the bot has is a motor safety check which executes before the Bluetooth state-machine executes. This motor safety check fires after an interval of time and determines whether to send a stop command to both motors. If after the interval of time, an `ACK` has not been received, the stop command is sent to the motors.
+The main safety feature the bot has is a motor safety check which executes before the Bluetooth state-machine executes. This motor safety check fires after an interval of time and determines whether to send a stop command to both motors. If after the interval of time, an `ACK` has not been received, the stop command is sent to the motors.
 
 As this feature executes before the state-machine, regardless of corrupt, invalid, or no data is received, the motors will be stopped after a period of time if an `ACK` has not been seen by the bot.
 
