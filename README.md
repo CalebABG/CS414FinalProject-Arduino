@@ -9,8 +9,6 @@ This is the meat of the project, the companion phone app can be found here: [CS4
 
 If you'd like a detailed breakdown of the project, the challenges, and the solutions, checkout the project report: [Final Project Report](writeups/project-breakdown.md)
 
-If you'd like to see a side-by-side demo of the app and bot together, checkout the demo on Youtube (coming soon!): [Final Project Demo](#)
-
 Most if not all project parts are listed below, so check them out if you're interested and want to take a go at building one!
 
 Thanks for checking out the repo, happy coding!
