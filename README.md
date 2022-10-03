@@ -39,7 +39,7 @@ Would also recommend using a `hot glue` gun for mounting the motors! If not hot 
   - You can also get a higher voltage battery if needed (i.e > 11.1V), but make sure to step down the voltage for the `Arduino` to between 7-12V; as well as for the `Motor Driver` between 5-40V
     - Note: If using TT motors, driving motors with more than 25-30V, you will probably burn out your motors. Check your motors datasheet to see what the max input voltage the motors can take is.
 - [LiPo Battery Balance Charger](https://www.amazon.com/dp/B099K8XFG6)
-  - If you can spare the extra expense, go with this charger: [ISDT Q6 Lite Battgo Lipo Battery Charger/Discharger](https://www.amazon.com/ISDT-Battery-Charger-Discharger-Balance/dp/B078RF1SD5)
+  - If you can spare the extra expense, go with this charger: [ISDT Q6 Nano Lipo Battery Charger/Discharger](https://www.amazon.com/ISDT-Q6-Lite-200W-Charger/dp/B07D5N27Z2)
 - [XT30 Plug Connectors](https://www.amazon.com/dp/B07T894CD6)
 - [DC-DC Voltage Regulators](https://www.amazon.com/dp/B081N6WWJS)
 - [L298N Motor Drivers](https://www.amazon.com/HiLetgo-Controller-Stepper-H-Bridge-Mega2560/dp/B07BK1QL5T)
